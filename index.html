@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#ffffff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="My Life">
+<link rel="manifest" href="manifest.json">
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("/my-life-app/sw.js"))}</script>
+<title>My Life App</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f5f5f0;color:#1a1a1a;min-height:100vh;padding-bottom:80px}
+#lock-screen{position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:2rem}
+#lock-screen h1{font-size:22px;font-weight:500;color:#1a1a1a}
+#lock-screen p{font-size:14px;color:#888;text-align:center}
+#lock-screen input{width:100%;max-width:280px;padding:12px 16px;border:1px solid #ddd;border-radius:10px;font-size:16px;text-align:center;letter-spacing:4px}
+#lock-screen button{width:100%;max-width:280px;padding:12px;background:#1a1a1a;color:#fff;border:none;border-radius:10px;font-size:16px;cursor:pointer}
+#lock-screen .err{color:#e24b4a;font-size:13px;min-height:20px}
+.header{background:#fff;border-bottom:0.5px solid #e5e5e5;padding:16px;position:sticky;top:0;z-index:100}
+.header h1{font-size:18px;font-weight:500}
+.tabs{display:flex;overflow-x:auto;background:#fff;border-bottom:0.5px solid #e5e5e5;padding:0 8px;gap:4px;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex-shrink:0;padding:10px 14px;font-size:13px;border:none;background:none;cursor:pointer;color:#888;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:#1a1a1a;border-bottom-color:#1a1a1a;font-weight:500}
+.content{padding:16px;max-width:600px;margin:0 auto}
+.section{display:none}
+.section.active{display:block}
+.card{background:#fff;border-radius:12px;border:0.5px solid #e5e5e5;padding:16px;margin-bottom:12px}
+.card-title{font-size:12px;color:#888;margin-bottom:12px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+.row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0f0f0}
+.row:last-child{border-bottom:none}
+.badge{font-size:11px;padding:3px 8px;border-radius:99px;flex-shrink:0}
+.b-study{background:#e6f1fb;color:#185fa5}
+.b-body{background:#eaf3de;color:#3b6d11}
+.b-english{background:#faeeda;color:#854f0b}
+.b-other{background:#f1efe8;color:#5f5e5a}
+.row-label{flex:1;font-size:14px}
+.row-date{font-size:12px;color:#888;flex-shrink:0}
+.btn{padding:8px 16px;border-radius:8px;border:0.5px solid #ddd;background:#fff;font-size:13px;cursor:pointer;color:#1a1a1a}
+.btn:active{background:#f5f5f0}
+.btn-primary{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn-danger{background:#fff;color:#e24b4a;border-color:#e24b4a}
+.btn-sm{padding:5px 10px;font-size:12px}
+.fab{position:fixed;bottom:90px;right:20px;width:52px;height:52px;border-radius:50%;background:#1a1a1a;color:#fff;border:none;font-size:24px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);z-index:50}
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:0.5px solid #e5e5e5;display:flex;z-index:100}
+.nav-item{flex:1;padding:10px 4px 6px;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;border:none;background:none;color:#888;font-size:10px}
+.nav-item.active{color:#1a1a1a}
+.nav-icon{font-size:20px}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;display:none;align-items:flex-end;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:600px;max-height:80vh;overflow-y:auto}
+.modal h2{font-size:16px;font-weight:500;margin-bottom:16px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:13px;color:#888;margin-bottom:6px}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;border:0.5px solid #ddd;border-radius:8px;font-size:15px;color:#1a1a1a;background:#fff}
+.form-group textarea{min-height:80px;resize:vertical}
+.form-actions{display:flex;gap:8px;margin-top:16px}
+.form-actions .btn{flex:1}
+.check-row{display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:0.5px solid #f0f0f0;cursor:pointer}
+.check-row:last-child{border-bottom:none}
+.check-row input[type=checkbox]{width:18px;height:18px;accent-color:#1a1a1a;cursor:pointer;flex-shrink:0}
+.check-label{flex:1;font-size:14px}
+.check-label.done{text-decoration:line-through;color:#bbb}
+.week-grid{display:flex;gap:4px;margin:8px 0}
+.day-col{flex:1;text-align:center}
+.day-name{font-size:11px;color:#888;margin-bottom:6px}
+.day-dot{width:32px;height:32px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:12px;cursor:pointer;border:0.5px solid #ddd;color:#888}
+.day-dot.done{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.day-dot.today{border:2px solid #1a1a1a;color:#1a1a1a;font-weight:600}
+.progress-wrap{margin-top:6px}
+.progress-bar{height:6px;background:#f0f0f0;border-radius:99px;overflow:hidden}
+.progress-fill{height:100%;background:#1a1a1a;border-radius:99px;transition:width 0.3s}
+.progress-label{font-size:12px;color:#888;text-align:right;margin-top:4px}
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat-card{background:#fff;border:0.5px solid #e5e5e5;border-radius:10px;padding:10px}
+.stat-label{font-size:11px;color:#888;margin-bottom:4px}
+.stat-value{font-size:18px;font-weight:500}
+.phase-row{display:flex;gap:10px;padding:10px 0;border-bottom:0.5px solid #f0f0f0}
+.phase-row:last-child{border-bottom:none}
+.phase-num{width:24px;height:24px;border-radius:50%;background:#e6f1fb;color:#185fa5;font-size:11px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px}
+.phase-title{font-size:13px;font-weight:500}
+.phase-sub{font-size:12px;color:#888;margin-top:2px}
+.edit-btn{padding:3px 8px;font-size:11px;border:0.5px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;color:#888}
+.del-btn{padding:3px 8px;font-size:11px;border:0.5px solid #fcc;border-radius:6px;background:#fff;cursor:pointer;color:#e24b4a}
+canvas{width:100%!important}
+.empty{text-align:center;padding:24px;color:#bbb;font-size:14px}
+.streak{font-size:12px;color:#888;margin-top:4px}
+.streak span{color:#1a1a1a;font-weight:500}
+</style>
+</head>
+<body>
+
+<div id="lock-screen">
+  <h1>🔒 My Life App</h1>
+  <p>パスワードを入力してください</p>
+  <input type="password" id="pw-input" placeholder="••••••" maxlength="20">
+  <button onclick="checkPw()">ログイン</button>
+  <div class="err" id="pw-err"></div>
+  <p style="font-size:11px;color:#ccc;margin-top:8px">初回は任意のパスワードを入力してください</p>
+</div>
+
+<div id="app" style="display:none">
+<div class="header"><h1>My Life App</h1></div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('goals')">目標</button>
+  <button class="tab" onclick="switchTab('tasks')">タスク</button>
+  <button class="tab" onclick="switchTab('study')">勉強</button>
+  <button class="tab" onclick="switchTab('body')">体づくり</button>
+  <button class="tab" onclick="switchTab('english')">英語</button>
+  <button class="tab" onclick="switchTab('settings')">設定</button>
+</div>
+
+<div class="content">
+
+<div id="goals" class="section active">
+  <div class="card">
+    <div class="card-title">目標一覧</div>
+    <div id="goals-list"></div>
+    <div class="empty" id="goals-empty" style="display:none">目標がありません。＋で追加してください</div>
+  </div>
+</div>
+
+<div id="tasks" class="section">
+  <div class="card">
+    <div class="card-title" id="tasks-date"></div>
+    <div id="tasks-list"></div>
+    <div class="empty" id="tasks-empty" style="display:none">タスクがありません。＋で追加してください</div>
+  </div>
+</div>
+
+<div id="study" class="section">
+  <div class="card">
+    <div class="card-title">基本情報 フェーズ進捗</div>
+    <div id="phases-list"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">今週の勉強記録</div>
+    <div class="week-grid" id="study-week"></div>
+    <div class="streak" id="study-streak"></div>
+  </div>
+</div>
+
+<div id="body" class="section">
+  <div class="stat-grid">
+    <div class="stat-card"><div class="stat-label">現在</div><div class="stat-value" id="cur-weight">-</div></div>
+    <div class="stat-card"><div class="stat-label">目標</div><div class="stat-value" id="goal-weight">60kg</div></div>
+    <div class="stat-card"><div class="stat-label">残り</div><div class="stat-value" id="diff-weight">-</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">体重を記録する</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="number" id="weight-input" step="0.1" placeholder="54.5" style="flex:1;padding:10px;border:0.5px solid #ddd;border-radius:8px;font-size:16px">
+      <span style="font-size:14px;color:#888">kg</span>
+      <button class="btn btn-primary btn-sm" onclick="saveWeight()">記録</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">体重の推移</div>
+    <canvas id="weight-chart"></canvas>
+  </div>
+  <div class="card">
+    <div class="card-title">今週のトレーニング</div>
+    <div class="week-grid" id="train-week"></div>
+    <div class="streak" id="train-streak"></div>
+  </div>
+</div>
+
+<div id="english" class="section">
+  <div class="card">
+    <div class="card-title">今週の英語習慣</div>
+    <div class="week-grid" id="english-week"></div>
+    <div class="streak" id="english-streak"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">英語の目標</div>
+    <div class="row"><span class="badge b-english">短期</span><span class="row-label">TOEIC 800点以上</span><span class="row-date">2026年7月</span></div>
+    <div class="row"><span class="badge b-english">中期</span><span class="row-label">IELTS 6.5以上</span><span class="row-date">3〜5年後</span></div>
+  </div>
+  <div class="card">
+    <div class="card-title">学習フェーズ</div>
+    <div class="phase-row"><div class="phase-num">1</div><div><div class="phase-title">習慣維持（〜10月末）</div><div class="phase-sub">BBC Learning English を毎日15分</div></div></div>
+    <div class="phase-row"><div class="phase-num">2</div><div><div class="phase-title">TOEIC本格対策（11月〜）</div><div class="phase-sub">朝30分・金のフレーズ・公式問題集</div></div></div>
+    <div class="phase-row"><div class="phase-num">3</div><div><div class="phase-title">TOEIC受験（2026年7月）</div><div class="phase-sub">800点目標</div></div></div>
+  </div>
+</div>
+
+<div id="settings" class="section">
+  <div class="card">
+    <div class="card-title">パスワード変更</div>
+    <div class="form-group"><label>新しいパスワード</label><input type="password" id="new-pw" placeholder="新しいパスワード"></div>
+    <div class="form-group"><label>確認</label><input type="password" id="new-pw2" placeholder="もう一度入力"></div>
+    <button class="btn btn-primary" onclick="changePw()">変更する</button>
+    <div class="err" id="pw-change-msg" style="margin-top:8px"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">目標体重</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="number" id="goal-weight-input" step="0.1" placeholder="60" style="flex:1;padding:10px;border:0.5px solid #ddd;border-radius:8px;font-size:16px">
+      <span style="font-size:14px;color:#888">kg</span>
+      <button class="btn btn-primary btn-sm" onclick="saveGoalWeight()">保存</button>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">データをリセット</div>
+    <p style="font-size:13px;color:#888;margin-bottom:12px">全データを削除します。この操作は取り消せません。</p>
+    <button class="btn btn-danger" onclick="resetAll()">全データをリセット</button>
+  </div>
+</div>
+
+</div>
+
+<button class="fab" id="fab" onclick="openAdd()">＋</button>
+
+</div>
+
+<div class="modal-bg" id="modal-bg" onclick="closeModal(event)">
+<div class="modal" id="modal">
+  <h2 id="modal-title">追加</h2>
+  <div id="modal-body"></div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+const DAYS=['月','火','水','木','金','土','日'];
+const todayIdx=(new Date().getDay()+6)%7;
+
+function ld(k,d){try{const v=localStorage.getItem(k);return v!==null?JSON.parse(v):d}catch{return d}}
+function sv(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}
+
+function checkPw(){
+  const input=document.getElementById('pw-input').value;
+  if(!input){document.getElementById('pw-err').textContent='パスワードを入力してください';return}
+  const stored=ld('app_pw',null);
+  if(stored===null){sv('app_pw',input);unlock()}
+  else if(stored===input){unlock()}
+  else{document.getElementById('pw-err').textContent='パスワードが違います'}
+}
+document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')checkPw()});
+
+function unlock(){
+  document.getElementById('lock-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  initApp();
+}
+
+function changePw(){
+  const p1=document.getElementById('new-pw').value;
+  const p2=document.getElementById('new-pw2').value;
+  const msg=document.getElementById('pw-change-msg');
+  if(!p1){msg.textContent='パスワードを入力してください';return}
+  if(p1!==p2){msg.textContent='パスワードが一致しません';return}
+  sv('app_pw',p1);
+  msg.style.color='#3b6d11';msg.textContent='変更しました';
+  setTimeout(()=>{msg.textContent='';msg.style.color='#e24b4a'},2000);
+}
+
+let currentTab='goals';
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab')[['goals','tasks','study','body','english','settings'].indexOf(id)].classList.add('active');
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  currentTab=id;
+  renderSection(id);
+}
+
+function renderSection(id){
+  if(id==='goals')renderGoals();
+  else if(id==='tasks')renderTasks();
+  else if(id==='study')renderStudy();
+  else if(id==='body')renderBody();
+  else if(id==='english')renderEnglish();
+}
+
+const defaultGoals=[
+  {id:1,label:'基本情報技術者試験 合格',date:'2025年10月末',cat:'study'},
+  {id:2,label:'TOEIC 800点以上',date:'2026年7月',cat:'english'},
+  {id:3,label:'体重 60kg 達成',date:'2026年10月',cat:'body'},
+  {id:4,label:'肩こり・首こり 軽減',date:'2025年9月',cat:'body'},
+  {id:5,label:'姿勢改善',date:'2026年4月',cat:'body'},
+  {id:6,label:'ジム通い開始',date:'2026年2〜3月',cat:'body'},
+];
+
+function renderGoals(){
+  const goals=ld('goals',defaultGoals);
+  const el=document.getElementById('goals-list');
+  document.getElementById('goals-empty').style.display=goals.length?'none':'block';
+  el.innerHTML=goals.map(g=>`
+    <div class="row">
+      <span class="badge b-${g.cat}">${{study:'勉強',body:'体',english:'英語',other:'その他'}[g.cat]||'その他'}</span>
+      <span class="row-label">${g.label}</span>
+      <span class="row-date">${g.date}</span>
+      <button class="edit-btn" onclick="editGoal(${g.id})">編集</button>
+      <button class="del-btn" onclick="delGoal(${g.id})">削除</button>
+    </div>`).join('');
+}
+
+function delGoal(id){
+  if(!confirm('削除しますか？'))return;
+  const goals=ld('goals',defaultGoals).filter(g=>g.id!==id);
+  sv('goals',goals);renderGoals();
+}
+
+function editGoal(id){
+  const goals=ld('goals',defaultGoals);
+  const g=goals.find(x=>x.id===id);
+  if(!g)return;
+  openModal('目標を編集',goalForm(g),()=>{
+    const label=document.getElementById('f-label').value.trim();
+    const date=document.getElementById('f-date').value.trim();
+    const cat=document.getElementById('f-cat').value;
+    if(!label)return alert('内容を入力してください');
+    g.label=label;g.date=date;g.cat=cat;
+    sv('goals',goals);closeModal();renderGoals();
+  });
+}
+
+function goalForm(g){
+  return `
+    <div class="form-group"><label>目標内容</label><input id="f-label" value="${g?g.label:''}" placeholder="例：TOEIC 800点"></div>
+    <div class="form-group"><label>期限</label><input id="f-date" value="${g?g.date:''}" placeholder="例：2026年7月"></div>
+    <div class="form-group"><label>カテゴリ</label>
+      <select id="f-cat">
+        <option value="study" ${g&&g.cat==='study'?'selected':''}>勉強</option>
+        <option value="body" ${g&&g.cat==='body'?'selected':''}>体づくり</option>
+        <option value="english" ${g&&g.cat==='english'?'selected':''}>英語</option>
+        <option value="other" ${g&&g.cat==='other'?'selected':''}>その他</option>
+      </select>
+    </div>`;
+}
+
+const defaultTasks=[
+  {id:1,label:'朝ストレッチ 3分'},
+  {id:2,label:'勉強 30分（基本情報）'},
+  {id:3,label:'英語 15分（BBC Learning English）'},
+  {id:4,label:'自重トレーニング 30分（月・水・金）'},
+  {id:5,label:'朝食でタンパク質を意識する'},
+  {id:6,label:'1時間に1回 肩を回す'},
+];
+
+function renderTasks(){
+  const today=new Date();
+  const dateKey=today.toDateString();
+  const d=`${today.getMonth()+1}月${today.getDate()}日（${'日月火水木金土'[today.getDay()]}）`;
+  document.getElementById('tasks-date').textContent=d;
+  const tasks=ld('task_templates',defaultTasks);
+  const done=ld('tasks_done_'+dateKey,[]);
+  document.getElementById('tasks-empty').style.display=tasks.length?'none':'block';
+  document.getElementById('tasks-list').innerHTML=tasks.map(t=>`
+    <div class="check-row" onclick="toggleTask(${t.id},'${dateKey}')">
+      <input type="checkbox" ${done.includes(t.id)?'checked':''} onclick="event.stopPropagation();toggleTask(${t.id},'${dateKey}')">
+      <span class="check-label ${done.includes(t.id)?'done':''}">${t.label}</span>
+      <button class="edit-btn" onclick="event.stopPropagation();editTask(${t.id})">編集</button>
+      <button class="del-btn" onclick="event.stopPropagation();delTask(${t.id})">削除</button>
+    </div>`).join('');
+}
+
+function toggleTask(id,dateKey){
+  const done=ld('tasks_done_'+dateKey,[]);
+  const i=done.indexOf(id);
+  if(i>=0)done.splice(i,1);else done.push(id);
+  sv('tasks_done_'+dateKey,done);renderTasks();
+}
+
+function delTask(id){
+  if(!confirm('削除しますか？'))return;
+  sv('task_templates',ld('task_templates',defaultTasks).filter(t=>t.id!==id));
+  renderTasks();
+}
+
+function editTask(id){
+  const tasks=ld('task_templates',defaultTasks);
+  const t=tasks.find(x=>x.id===id);
+  if(!t)return;
+  openModal('タスクを編集',`<div class="form-group"><label>タスク内容</label><input id="f-label" value="${t.label}" placeholder="タスクを入力"></div>`,()=>{
+    const label=document.getElementById('f-label').value.trim();
+    if(!label)return alert('内容を入力してください');
+    t.label=label;sv('task_templates',tasks);closeModal();renderTasks();
+  });
+}
+
+const defaultPhases=[
+  {id:1,title:'科目A 基礎固め',sub:'7月〜8月末 ／ テキストを読む',progress:0},
+  {id:2,title:'科目A 仕上げ ＋ 科目B 開始',sub:'9月 ／ 過去問道場 正答率70%以上',progress:0},
+  {id:3,title:'科目B 集中対策 ＋ 仕上げ',sub:'10月 ／ 問題集2周 → 10月末受験',progress:0},
+];
+
+function renderStudy(){
+  const phases=ld('phases',defaultPhases);
+  document.getElementById('phases-list').innerHTML=phases.map(p=>`
+    <div class="phase-row">
+      <div class="phase-num">${p.id}</div>
+      <div style="flex:1">
+        <div class="phase-title">${p.title}</div>
+        <div class="phase-sub">${p.sub}</div>
+        <div class="progress-wrap">
+          <div class="progress-bar"><div class="progress-fill" style="width:${p.progress}%"></div></div>
+          <div class="progress-label">${p.progress}%</div>
+        </div>
+      </div>
+      <button class="edit-btn" onclick="editPhase(${p.id})">更新</button>
+    </div>`).join('');
+  renderWeek('study-week','study_week');
+  const streak=calcStreak('study_week');
+  document.getElementById('study-streak').innerHTML=`継続: <span>${streak}日</span>`;
+}
+
+function editPhase(id){
+  const phases=ld('phases',defaultPhases);
+  const p=phases.find(x=>x.id===id);
+  openModal('進捗を更新',`
+    <div class="form-group"><label>タイトル</label><input id="f-title" value="${p.title}"></div>
+    <div class="form-group"><label>メモ</label><input id="f-sub" value="${p.sub}"></div>
+    <div class="form-group"><label>進捗 (0〜100%)</label><input id="f-prog" type="number" min="0" max="100" value="${p.progress}"></div>`,()=>{
+    p.title=document.getElementById('f-title').value;
+    p.sub=document.getElementById('f-sub').value;
+    p.progress=Math.min(100,Math.max(0,parseInt(document.getElementById('f-prog').value)||0));
+    sv('phases',phases);closeModal();renderStudy();
+  });
+}
+
+let wChart;
+function renderBody(){
+  const history=ld('weight_history',[{date:'開始',w:54.5}]);
+  const latest=history[history.length-1].w;
+  const goalW=ld('goal_weight',60);
+  document.getElementById('cur-weight').textContent=latest.toFixed(1)+'kg';
+  document.getElementById('goal-weight').textContent=goalW+'kg';
+  document.getElementById('diff-weight').textContent=Math.max(0,goalW-latest).toFixed(1)+'kg';
+  const ctx=document.getElementById('weight-chart').getContext('2d');
+  if(wChart)wChart.destroy();
+  wChart=new Chart(ctx,{type:'line',data:{
+    labels:history.map(h=>h.date),
+    datasets:[
+      {data:history.map(h=>h.w),borderColor:'#1a1a1a',backgroundColor:'rgba(26,26,26,0.05)',tension:0.3,pointRadius:4,fill:true,label:'体重'},
+      {data:history.map(()=>goalW),borderColor:'rgba(59,109,17,0.4)',borderDash:[4,4],pointRadius:0,fill:false,label:'目標'}
+    ]
+  },options:{plugins:{legend:{display:false}},scales:{
+    y:{min:50,max:70,ticks:{font:{size:11},color:'#888'},grid:{color:'rgba(0,0,0,0.05)'}},
+    x:{ticks:{font:{size:11},color:'#888'},grid:{display:false}}
+  }}});
+  renderWeek('train-week','train_week');
+  const streak=calcStreak('train_week');
+  document.getElementById('train-streak').innerHTML=`継続: <span>${streak}日</span>`;
+}
+
+function saveWeight(){
+  const w=parseFloat(document.getElementById('weight-input').value);
+  if(isNaN(w)||w<30||w>200){alert('正しい体重を入力してください');return}
+  const today=new Date();
+  const date=`${today.getMonth()+1}/${today.getDate()}`;
+  const history=ld('weight_history',[{date:'開始',w:54.5}]);
+  history.push({date,w});
+  sv('weight_history',history);
+  document.getElementById('weight-input').value='';
+  renderBody();
+}
+
+function saveGoalWeight(){
+  const w=parseFloat(document.getElementById('goal-weight-input').value);
+  if(isNaN(w))return alert('数値を入力してください');
+  sv('goal_weight',w);
+  renderBody();
+  alert('保存しました');
+}
+
+function renderEnglish(){
+  renderWeek('english-week','english_week');
+  const streak=calcStreak('english_week');
+  document.getElementById('english-streak').innerHTML=`継続: <span>${streak}日</span>`;
+}
+
+function renderWeek(containerId,storageKey){
+  const weekKey=getWeekKey();
+  const done=ld(storageKey+'_'+weekKey,[]);
+  const el=document.getElementById(containerId);
+  el.innerHTML=DAYS.map((d,i)=>`
+    <div class="day-col">
+      <div class="day-name">${d}</div>
+      <div class="day-dot ${done.includes(i)?'done':''} ${i===todayIdx?'today':''}" onclick="toggleDay('${storageKey}','${weekKey}',${i},'${containerId}')">
+        ${done.includes(i)?'✓':''}
+      </div>
+    </div>`).join('');
+}
+
+function toggleDay(key,weekKey,i,containerId){
+  const done=ld(key+'_'+weekKey,[]);
+  const idx=done.indexOf(i);
+  if(idx>=0)done.splice(idx,1);else done.push(i);
+  sv(key+'_'+weekKey,done);
+  renderWeek(containerId,key);
+}
+
+function getWeekKey(){
+  const d=new Date();
+  const day=d.getDay();
+  const diff=d.getDate()-day+(day===0?-6:1);
+  const mon=new Date(d.setDate(diff));
+  return `${mon.getFullYear()}-${mon.getMonth()+1}-${mon.getDate()}`;
+}
+
+function calcStreak(key){
+  const weekKey=getWeekKey();
+  return ld(key+'_'+weekKey,[]).length;
+}
+
+let modalConfirm=null;
+function openModal(title,body,onConfirm){
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=body+`
+    <div class="form-actions">
+      <button class="btn" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="modalConfirm()">保存する</button>
+    </div>`;
+  modalConfirm=onConfirm;
+  document.getElementById('modal-bg').classList.add('open');
+}
+
+function closeModal(e){
+  if(e&&e.target!==document.getElementById('modal-bg'))return;
+  document.getElementById('modal-bg').classList.remove('open');
+  modalConfirm=null;
+}
+
+function openAdd(){
+  if(currentTab==='goals'){
+    openModal('目標を追加',goalForm(null),()=>{
+      const label=document.getElementById('f-label').value.trim();
+      const date=document.getElementById('f-date').value.trim();
+      const cat=document.getElementById('f-cat').value;
+      if(!label)return alert('内容を入力してください');
+      const goals=ld('goals',defaultGoals);
+      goals.push({id:Date.now(),label,date,cat});
+      sv('goals',goals);closeModal();renderGoals();
+    });
+  } else if(currentTab==='tasks'){
+    openModal('タスクを追加',`<div class="form-group"><label>タスク内容</label><input id="f-label" placeholder="タスクを入力"></div>`,()=>{
+      const label=document.getElementById('f-label').value.trim();
+      if(!label)return alert('内容を入力してください');
+      const tasks=ld('task_templates',defaultTasks);
+      tasks.push({id:Date.now(),label});
+      sv('task_templates',tasks);closeModal();renderTasks();
+    });
+  } else if(currentTab==='study'){
+    openModal('フェーズを追加',`
+      <div class="form-group"><label>タイトル</label><input id="f-title" placeholder="例：科目A 仕上げ"></div>
+      <div class="form-group"><label>メモ</label><input id="f-sub" placeholder="例：9月 ／ 過去問道場"></div>`,()=>{
+      const title=document.getElementById('f-title').value.trim();
+      if(!title)return alert('タイトルを入力してください');
+      const phases=ld('phases',defaultPhases);
+      phases.push({id:Date.now(),title,sub:document.getElementById('f-sub').value,progress:0});
+      sv('phases',phases);closeModal();renderStudy();
+    });
+  } else if(currentTab==='body'){
+    document.getElementById('weight-input').focus();
+  }
+}
+
+function resetAll(){
+  if(!confirm('本当に全データを削除しますか？この操作は取り消せません。'))return;
+  const pw=ld('app_pw',null);
+  localStorage.clear();
+  if(pw)sv('app_pw',pw);
+  alert('リセットしました');
+  location.reload();
+}
+
+function initApp(){
+  renderGoals();
+  renderTasks();
+}
+</script>
+</body>
+</html>
